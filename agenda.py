@@ -13,20 +13,25 @@ import time
 import os
 import hashlib
 
-# Conexion con Base de Datos Sqlite3
-con = sqlite3.connect("agenda.db")
-cursor = con.cursor()
-# Comprueba si la tabla existe, en caso de no existir la crea
-cursor.execute("""CREATE TABLE IF NOT EXISTS datos (nombre TEXT, apellido TEXT, telefono TEXT, correo TEXT)""")
-cursor.close()
+def conecta():
+    """Realiza la conexión a la base de datos agenda.db"""
+    con = sqlite3.connect("agenda.db")
+    return con
 
-con = sqlite3.connect("pass.db")
-cursor = con.cursor()
-cursor.execute("""CREATE TABLE IF NOT EXISTS pass_user (contrasena INTEGER, contrasena_encryptada TEXT)""")
-cursor.close()
+def conexion():
+
+    con = conecta()
+    cursor = con.cursor()
+    # Comprueba si la tabla existe, en caso de no existir la crea
+    #cursor.execute("""DROP TABLE datos""")
+    #cursor.execute("""DROP TABLE pass_user""")
+    cursor.execute("""CREATE TABLE IF NOT EXISTS datos (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT, apellido TEXT, telefono TEXT, correo TEXT)""")
+    cursor.execute("""CREATE TABLE IF NOT EXISTS pass_user (contrasena INTEGER, contrasena_encryptada TEXT)""")
+    cursor.close()
 
 
 def run():
+    conexion()
     print("[BIENVENIDO A SU AGENDA]")
 
     if comprobar_si_contrasena() != 1:
@@ -42,33 +47,23 @@ def encryptar_contrasena(cadena):
 
 
 def comprobar_si_contrasena():
-
-    con = sqlite3.connect("pass.db")
+    con = conecta()
     cursor = con.cursor()
-
     cursor.execute("SELECT * FROM pass_user ")
-
     contrasena = cursor.fetchall()
-
     for contrasena_bolean in contrasena:
         contrasena = contrasena_bolean[0]
-
     cursor.close()
     return contrasena
 
 
 def recuperar_contrasena_encryptada():
-
-    con = sqlite3.connect("pass.db")
+    con = conecta()
     cursor = con.cursor()
-
     cursor.execute("SELECT * FROM pass_user ")
-
     contrasena = cursor.fetchall()
-
     for contrasena_encryptada in contrasena:
         contrasena = contrasena_encryptada[1]
-
     cursor.close()
     return contrasena
 
@@ -81,7 +76,7 @@ def menu_contrasena():
 
     if contrasena1 == contrasena2:
 
-        con = sqlite3.connect("pass.db")
+        con = conecta()
         cursor = con.cursor()
 
         contrasena = 1
@@ -101,7 +96,7 @@ def menu_inicio():
     opcionwhile = False
 
     while opcionwhile == False:
-        opcionwhile = True
+        os.system("clear")
         print("")
         print("-------------")
         print("[MENÚ AGENDA]")
@@ -124,20 +119,12 @@ def menu_inicio():
             print("[Opcion Incorrecta]")
             print("")
             time.sleep(2)
-            opcionwhile = False
 
         elif opcion == "1":
-            print("")
-            print("--------------------")
-            print("[LISTA DE CONTACTOS]")
-            print("--------------------")
-            print("")
-
+            imprimir_encabezado("LISTA DE CONTACTOS")
             ver_contactos_opcion1()
-
             print("")
             input("Presione una tecla para continuar...")
-            menu_inicio()
         elif opcion == "2":
             anadir_contactos_opcion2()
         elif opcion == "3":
@@ -153,32 +140,33 @@ def menu_inicio():
         elif opcion == "0":
             salir_opcion0()
 
+def isContact(identificador):
+    con = conecta()
+    cursor = con.cursor()
+    cursor.execute(f"SELECT * FROM datos WHERE id = {identificador}")
+    cant = cursor.fetchall()
+    cursor.close()
+    return len(cant)
+
 
 def ver_contactos_opcion1():
     """Devuelve todos los contactos de la agenda"""
-
-    con = sqlite3.connect("agenda.db")
+    con = conecta()
     cursor = con.cursor()
-
     cursor.execute("SELECT * FROM datos")
     resultado = cursor.fetchall()
 
     for i in resultado:
-        print("%s %s %s %s" % (i[0], i[1], i[2], i[3]))
+        print("%s   %s   %s   %s   %s" % (i[0], i[1], i[2], i[3], i[4]))
 
     cursor.close()
 
 
-
 def anadir_contactos_opcion2():
     """Agrega un nuevo contacto a la Agenda"""
-    print("")
-    print("------------------")
-    print("[AGREGAR CONTACTO]")
-    print("------------------")
-    print("")
+    imprimir_encabezado("AGREGAR CONTACTO")
 
-    con = sqlite3.connect("agenda.db")
+    con = conecta()
     cursor = con.cursor()
 
     nombre = input("Nombre: ")
@@ -190,146 +178,131 @@ def anadir_contactos_opcion2():
         nombre, apellido, telefono, correo))
 
     con.commit()
+    cursor.close()
 
     print("")
     print("Los datos fueron agregados correctamente")
-
-    cursor.close()
-    time.sleep(2)
-    menu_inicio()
 
 
 def editar_contactos_opcion3():
-    x = buscar_contactos_opcion5()
-    nombre = x[0][0]
+    imprimir_encabezado("EDITAR CONTACTOS")
 
-    while True:
-        print("")
-        print("--------------------")
-        print("1. Nombre")
-        print("2. Apellido")
-        print("3. Telefono")
-        print("4. Correo")
-        print("0. Finaliza")
-        print("--------------------")
-        print("")
-        opcion = input("Ingrese la opcion a editar: ")
+    ver_contactos_opcion1()
+    print("\n")
+    identificador = input("Ingrese el id del contacto a editar: ")
+    buscar = isContact(identificador)
 
-        con = sqlite3.connect("agenda.db")
-        cursor = con.cursor()
+    if buscar > 0:
+        print("\n")
+        contrasena = input("Ingrese su contraseña para editar: ")
+        if encryptar_contrasena(contrasena) == recuperar_contrasena_encryptada():
+            print("")
+            print("")
+            while True:
+                print("")
+                print("Campos a editar")
+                print("")
+                print("--------------------")
+                print("1. Nombre")
+                print("2. Apellido")
+                print("3. Telefono")
+                print("4. Correo")
+                print("0. Finaliza")
+                print("--------------------")
+                print("")
+                opcion = input("Ingrese la opcion a editar: ")
 
-        if opcion == '1':
-            nuevoNombre = input("Ingrese el nuevo nombre: ")
-            cursor.execute("UPDATE datos SET nombre = '%s' WHERE nombre='%s'" % (nuevoNombre, nombre))
-            con.commit()
-            nombre = nuevoNombre
-        elif opcion == '2':
-            apellido = input("Ingrese el nuevo apellido: ")
-            cursor.execute("UPDATE datos SET apellido = '%s' WHERE nombre='%s'" % (apellido, nombre))
-            con.commit()
-        elif opcion == '3':
-            telefono = input("Ingrese el nuevo telefono: ")
-            cursor.execute("UPDATE datos SET telefono = '%s' WHERE nombre='%s'" % (telefono, nombre))
-            con.commit()
-        elif opcion == '4':
-            correo = input("Ingrese el nuevo correo: ")
-            cursor.execute("UPDATE datos SET correo = '%s' WHERE nombre='%s'" % (correo, nombre))
-            con.commit()
+                con = conecta()
+                cursor = con.cursor()
+
+                if opcion == '0':
+                    break
+                elif opcion == '1':
+                    nuevoNombre = input("Ingrese el nuevo nombre: ")
+                    cursor.execute("UPDATE datos SET nombre = '%s' WHERE id='%s'" % (nuevoNombre, identificador))
+                elif opcion == '2':
+                    apellido = input("Ingrese el nuevo apellido: ")
+                    cursor.execute("UPDATE datos SET apellido = '%s' WHERE id='%s'" % (apellido, identificador))
+                elif opcion == '3':
+                    telefono = input("Ingrese el nuevo telefono: ")
+                    cursor.execute("UPDATE datos SET telefono = '%s' WHERE id='%s'" % (telefono, identificador))
+                elif opcion == '4':
+                    correo = input("Ingrese el nuevo correo: ")
+                    cursor.execute("UPDATE datos SET correo = '%s' WHERE id='%s'" % (correo, identificador))
+                else:
+                    print("\n")
+                    print("Opción Incorrecta")
+                con.commit()
+
+            cursor.close()
+
+            print("")
+            print("Los datos fueron agregados correctamente")
         else:
-            break
-
-    cursor.close()
+            print("[ERROR DE CONTRASEÑA]")
+    else:
+        print("\n")
+        print("El contacto no existe")
 
     print("")
-    print("Los datos fueron agregados correctamente")
-
-    cursor.close()
-    time.sleep(2)
-    menu_inicio()
+    input("Presione una tecla para continuar...")
 
 
 def eliminar_contactos_opcion4():
     """Elimina un contacto de la Agenda"""
-
-    print("")
-    print("--------------------")
-    print("[ELIMINAR CONTACTOS]")
-    print("--------------------")
-    print("")
+    imprimir_encabezado("ELIMINAR CONTACTOS")
 
     ver_contactos_opcion1()
 
-    print("")
-    print("")
-    print("INGRESE LOS DATOS DEL CONTACTO QUE DESEA ELIMINAR")
-    nombre = input("Nombre: ")
-    apellido = input("Apellidos: ")
-
+    identificador = input("Ingrese el id del contacto a eliminar: ")
     print("")
     print("")
 
     #recupera los nombres y apellidos de la base de datos y los compara, si hay exactitud continua de lo contrario no
-    con = sqlite3.connect("agenda.db")
-    cursor = con.cursor()
-
-    cursor.execute("SELECT * FROM datos WHERE nombre = '%s' AND apellido = '%s'" % (nombre, apellido))
-    buscar = cursor.fetchall()
-
-    print("")
-    si_existe = 0
-    for existe in buscar:
-        if nombre == existe[0] and apellido == existe[1]:
-            si_existe = 1
+    buscar = isContact(identificador)
+    print("\n")
 
     #si existe el contacto a eliminar solicita la contraseña para eliminar
-    if si_existe == 1:
+    if buscar > 0:
         contrasena = input("Ingrese su contraseña para eliminar: ")
         if encryptar_contrasena(contrasena) == recuperar_contrasena_encryptada():
 
-            cursor.execute("DELETE FROM datos WHERE nombre='%s'" % (nombre))
-
+            cursor.execute("DELETE FROM datos WHERE id='%s'" % (identificador))
             con.commit()
-
             cursor.close()
 
             print("Contacto eliminado correctamente...")
         else:
             print("[ERROR DE CONTRASEÑA]")
     else:
-        print("[ERROR: NO SE HA ENCONTRADO CONTACTO ")
+        print("[ERROR: NO SE HA ENCONTRADO CONTACTO]")
 
-    time.sleep(2)
-    menu_inicio()
+    input("Presione una tecla para continuar...")
 
 
 def buscar_contactos_opcion5():
     """Busca un contacto en la agenda y lo lista"""
+    imprimir_encabezado("BUSCAR CONTACTO")
 
-    print("Buscar contacto")
-    print("---------------")
-    print("")
-
-    con = sqlite3.connect("agenda.db")
+    con = conecta()
     cursor = con.cursor()
 
-    buscar = input("Nombre a buscar: ")
+    buscar = input("Buscar: ")
 
-    cursor.execute("SELECT * FROM datos WHERE nombre = '%s'" % (buscar))
+    cursor.execute("SELECT * FROM datos WHERE nombre LIKE ? OR apellido LIKE ? OR telefono LIKE ? OR correo LIKE ?", 
+        ('%'+buscar+'%','%'+buscar+'%','%'+buscar+'%','%'+buscar+'%',))
 
     x = cursor.fetchall()
 
     print("")
 
-    for i in x:
-        print("Nombre:", i[0])
-        print("Apellido:", i[1])
-        print("Telefono:", i[2])
-        print("Correo:", i[3])
-        print("")
+    if len(x) > 0:
+        for i in x:
+            print("%s   %s   %s   %s   %s" % (i[0], i[1], i[2], i[3], i[4]))
+    else:
+        print("No se encontró ningún contacto")
 
     cursor.close()
-
-    return x
 
 
 def opciones_opcion6():
@@ -337,11 +310,7 @@ def opciones_opcion6():
 
     while opcionwhile == False:
         opcionwhile = True
-        print("")
-        print("-------------")
-        print("[MENÚ OPCIONES]")
-        print("-------------")
-        print("")
+        imprimir_encabezado("MENU OPCIONES")
         print("[1] Exportar Contactos.")
         print("[2] Importar Contactos.")
         print("[0] Atras.")
@@ -353,15 +322,16 @@ def opciones_opcion6():
             print("")
             print("[Opcion Incorrecta]")
             print("")
-            time.sleep(2)
-            opcionwhile = False
 
         elif opcion == "1":
             pass
         elif opcion == "2":
             pass
         elif opcion == "0":
-            menu_inicio()
+            break
+            
+
+    menu_inicio()
 
 
 def salir_opcion0():
@@ -371,6 +341,13 @@ def salir_opcion0():
     print("")
     time.sleep(2)
     exit()
+
+def imprimir_encabezado(titulo):
+    print("")
+    print("--------------------")
+    print("[%s]" % (titulo))
+    print("--------------------")
+    print("")
 
 
 if __name__ == '__main__':
