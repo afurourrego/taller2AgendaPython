@@ -12,6 +12,7 @@ import sqlite3
 import time
 import os
 import hashlib
+import csv
 
 def conecta():
     """Realiza la conexión a la base de datos agenda.db"""
@@ -149,17 +150,21 @@ def isContact(identificador):
     return len(cant)
 
 
-def ver_contactos_opcion1():
-    """Devuelve todos los contactos de la agenda"""
+def obtener_contactos():
+    """Obtener todos los contactos de la tabla"""
     con = conecta()
     cursor = con.cursor()
     cursor.execute("SELECT * FROM datos")
     resultado = cursor.fetchall()
+    cursor.close()
+    return resultado
 
+
+def ver_contactos_opcion1():
+    """Muestra todos los contactos de la agenda"""
+    resultado = obtener_contactos()
     for i in resultado:
         print("%s   %s   %s   %s   %s" % (i[0], i[1], i[2], i[3], i[4]))
-
-    cursor.close()
 
 
 def anadir_contactos_opcion2():
@@ -324,9 +329,27 @@ def opciones_opcion6():
             print("")
 
         elif opcion == "1":
-            pass
+            resultado = obtener_contactos()
+            headers = ('id', 'nombre', 'apellido', 'telefono', 'correo')
+            with open('export.csv', 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow(headers)
+                writer.writerows(resultado)
+            # archivo = open("G:\\hello.txt", "w")
+            # for i in resultado:
+            #     archivo.write(str(i))
+            # archivo.close() 
+
         elif opcion == "2":
-            pass
+            con = conecta()
+            cursor = con.cursor()
+            with open('export.csv') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    cursor.execute("insert into datos values ( NULL, '%s','%s','%s','%s')" % (
+                    row['nombre'], row['apellido'], row['telefono'], row['correo']))
+            con.commit()
+            cursor.close()
         elif opcion == "0":
             break
             
