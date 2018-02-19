@@ -13,6 +13,7 @@ import time
 import os
 import hashlib
 import csv
+import getpass
 
 def conecta():
     """Realiza la conexión a la base de datos agenda.db"""
@@ -20,18 +21,16 @@ def conecta():
     return con
 
 def conexion():
-
+    """Comprueba existen las tablas, en caso de no existir las0 crea"""
     con = conecta()
     cursor = con.cursor()
-    # Comprueba si la tabla existe, en caso de no existir la crea
-    #cursor.execute("""DROP TABLE datos""")
-    #cursor.execute("""DROP TABLE pass_user""")
     cursor.execute("""CREATE TABLE IF NOT EXISTS datos (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT, apellido TEXT, telefono TEXT, correo TEXT)""")
     cursor.execute("""CREATE TABLE IF NOT EXISTS pass_user (contrasena INTEGER, contrasena_encryptada TEXT)""")
     cursor.close()
 
 
 def run():
+    """Funcion inicial del programa"""
     conexion()
     print("[BIENVENIDO A SU AGENDA]")
 
@@ -42,12 +41,14 @@ def run():
 
 
 def encryptar_contrasena(cadena):
+    """Encripta una constraseña y la retorna"""
     encriptada = hashlib.sha1()
-    encriptada.update(cadena.encode('utf-8'))
+    encriptada.update(str(cadena).encode('utf-8'))
     return encriptada.hexdigest()
 
 
 def comprobar_si_contrasena():
+    """Comprueba si ya existe la contraseña del programa(no existe sólo la primera vez que se inicia el programa)"""
     con = conecta()
     cursor = con.cursor()
     cursor.execute("SELECT * FROM pass_user ")
@@ -59,6 +60,7 @@ def comprobar_si_contrasena():
 
 
 def recuperar_contrasena_encryptada():
+    """Retorna la contraseña encripta de la tabla"""
     con = conecta()
     cursor = con.cursor()
     cursor.execute("SELECT * FROM pass_user ")
@@ -69,33 +71,28 @@ def recuperar_contrasena_encryptada():
     return contrasena
 
 
-
 def menu_contrasena():
+    """Menú de ingreso de contraseñas"""
     print("...")
-    contrasena1 = input("Ingrese su nueva contraseña: ")
-    contrasena2 = input("Repita su contraseña: ")
+    contrasena1 = getpass.getpass("Ingrese su nueva contraseña: ")
+    contrasena2 = getpass.getpass("Repita su contraseña: ")
 
     if contrasena1 == contrasena2:
-
         con = conecta()
         cursor = con.cursor()
-
         contrasena = 1
         contrasena_encryptada = encryptar_contrasena(contrasena1)
-
         cursor.execute("insert into pass_user(contrasena, contrasena_encryptada) values ('%s','%s')"% (contrasena, contrasena_encryptada))
-
         con.commit()
-        cursor.close()
-        
+        cursor.close()   
     else:
         print("Error:[Las contraseñas deben ser iguales]")
         menu_contrasena()
 
 
 def menu_inicio():
+    """Muestra el menú principal de la agenda"""
     opcionwhile = False
-
     while opcionwhile == False:
         os.system("clear")
         print("")
@@ -111,7 +108,6 @@ def menu_inicio():
         print("[6] Opciones.")
         print("[0] Salir.")
         print("")
-
         opcion = input("Eliga una Opción: ")
 
         if opcion != "1" and opcion != "2" and opcion != "3" and opcion != "4" and opcion != "5" and opcion != "6" and opcion != "0":
@@ -120,7 +116,6 @@ def menu_inicio():
             print("[Opcion Incorrecta]")
             print("")
             time.sleep(2)
-
         elif opcion == "1":
             imprimir_encabezado("LISTA DE CONTACTOS")
             ver_contactos_opcion1()
@@ -141,10 +136,12 @@ def menu_inicio():
         elif opcion == "0":
             salir_opcion0()
 
-def isContact(identificador):
+
+def cantidad_contactos(identificador):
+    """Retorna la cantidad de contactos"""
     con = conecta()
     cursor = con.cursor()
-    cursor.execute(f"SELECT * FROM datos WHERE id = {identificador}")
+    cursor.execute("SELECT * FROM datos WHERE id = %s" % identificador)
     cant = cursor.fetchall()
     cursor.close()
     return len(cant)
@@ -181,7 +178,6 @@ def anadir_contactos_opcion2():
 
     cursor.execute("insert into datos (nombre, apellido, telefono, correo) values ('%s','%s','%s','%s')" % (
         nombre, apellido, telefono, correo))
-
     con.commit()
     cursor.close()
 
@@ -190,16 +186,17 @@ def anadir_contactos_opcion2():
 
 
 def editar_contactos_opcion3():
+    """Permite editar los contactos de la agenda"""
     imprimir_encabezado("EDITAR CONTACTOS")
 
     ver_contactos_opcion1()
     print("\n")
     identificador = input("Ingrese el id del contacto a editar: ")
-    buscar = isContact(identificador)
+    buscar = cantidad_contactos(identificador)
 
     if buscar > 0:
         print("\n")
-        contrasena = input("Ingrese su contraseña para editar: ")
+        contrasena = getpass.getpass("Ingrese su contraseña para editar: ")
         if encryptar_contrasena(contrasena) == recuperar_contrasena_encryptada():
             print("")
             print("")
@@ -238,9 +235,7 @@ def editar_contactos_opcion3():
                     print("\n")
                     print("Opción Incorrecta")
                 con.commit()
-
             cursor.close()
-
             print("")
             print("Los datos fueron agregados correctamente")
         else:
@@ -248,7 +243,6 @@ def editar_contactos_opcion3():
     else:
         print("\n")
         print("El contacto no existe")
-
     print("")
     input("Presione una tecla para continuar...")
 
@@ -264,14 +258,15 @@ def eliminar_contactos_opcion4():
     print("")
 
     #recupera los nombres y apellidos de la base de datos y los compara, si hay exactitud continua de lo contrario no
-    buscar = isContact(identificador)
+    buscar = cantidad_contactos(identificador)
     print("\n")
 
     #si existe el contacto a eliminar solicita la contraseña para eliminar
     if buscar > 0:
-        contrasena = input("Ingrese su contraseña para eliminar: ")
+        contrasena = getpass.getpass("Ingrese su contraseña para eliminar: ")
         if encryptar_contrasena(contrasena) == recuperar_contrasena_encryptada():
-
+            con = conecta()
+            cursor = con.cursor()
             cursor.execute("DELETE FROM datos WHERE id='%s'" % (identificador))
             con.commit()
             cursor.close()
@@ -286,7 +281,7 @@ def eliminar_contactos_opcion4():
 
 
 def buscar_contactos_opcion5():
-    """Busca un contacto en la agenda y lo lista"""
+    """Busca contactos en la agenda y los lista"""
     imprimir_encabezado("BUSCAR CONTACTO")
 
     con = conecta()
@@ -296,11 +291,9 @@ def buscar_contactos_opcion5():
 
     cursor.execute("SELECT * FROM datos WHERE nombre LIKE ? OR apellido LIKE ? OR telefono LIKE ? OR correo LIKE ?", 
         ('%'+buscar+'%','%'+buscar+'%','%'+buscar+'%','%'+buscar+'%',))
-
     x = cursor.fetchall()
 
     print("")
-
     if len(x) > 0:
         for i in x:
             print("%s   %s   %s   %s   %s" % (i[0], i[1], i[2], i[3], i[4]))
@@ -311,10 +304,9 @@ def buscar_contactos_opcion5():
 
 
 def opciones_opcion6():
-    opcionwhile = False
-
-    while opcionwhile == False:
-        opcionwhile = True
+    """Muestra un segundo menú de opciones"""
+    opcionwhile = True
+    while opcionwhile:
         imprimir_encabezado("MENU OPCIONES")
         print("[1] Exportar Contactos.")
         print("[2] Importar Contactos.")
@@ -327,37 +319,40 @@ def opciones_opcion6():
             print("")
             print("[Opcion Incorrecta]")
             print("")
-
         elif opcion == "1":
-            resultado = obtener_contactos()
-            headers = ('id', 'nombre', 'apellido', 'telefono', 'correo')
-            with open('export.csv', 'w', newline='', encoding='utf-8') as f:
-                writer = csv.writer(f)
-                writer.writerow(headers)
-                writer.writerows(resultado)
-            # archivo = open("G:\\hello.txt", "w")
-            # for i in resultado:
-            #     archivo.write(str(i))
-            # archivo.close() 
-
+            exportar_contactos()
         elif opcion == "2":
-            con = conecta()
-            cursor = con.cursor()
-            with open('export.csv') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    cursor.execute("insert into datos values ( NULL, '%s','%s','%s','%s')" % (
-                    row['nombre'], row['apellido'], row['telefono'], row['correo']))
-            con.commit()
-            cursor.close()
+            importar_contactos()
         elif opcion == "0":
-            break
+            opcionwhile = False
             
-
     menu_inicio()
 
+def exportar_contactos():
+    """Importa los contactos de la agenda a un archivo .csv"""
+    resultado = obtener_contactos()
+    headers = ('id', 'nombre', 'apellido', 'telefono', 'correo')
+    with open('export.csv', 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
+        writer.writerows(resultado)
+    input("Se exportaron todos los contactos")
+
+def importar_contactos():
+    """Exporta los contactos de la agenda a un archivo .csv"""
+    con = conecta()
+    cursor = con.cursor()
+    with open('export.csv') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            cursor.execute("insert into datos values ( NULL, '%s','%s','%s','%s')" % (
+            row['nombre'], row['apellido'], row['telefono'], row['correo']))
+    con.commit()
+    cursor.close()
+    input("Se importaron todos los contactos")
 
 def salir_opcion0():
+    """Realiza la salida del sistema"""
     print("")
     print("Saliendo de Agenda...")
     print("")
@@ -366,6 +361,7 @@ def salir_opcion0():
     exit()
 
 def imprimir_encabezado(titulo):
+    """Imprime un encabezado"""
     print("")
     print("--------------------")
     print("[%s]" % (titulo))
